@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'quiz_setup_screen.dart';
+import 'leaderboard_screen.dart';
 
 class ResultScreen extends StatelessWidget {
   final int score;
   final int total;
 
-  const ResultScreen({super.key, required this.score, required this.total});
+  const ResultScreen({
+    super.key,
+    required this.score,
+    required this.total,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +49,17 @@ class ResultScreen extends StatelessWidget {
                   );
                 },
                 child: const Text('Retake Quiz'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const LeaderboardScreen()),
+                    (route) => false,
+                  );
+                },
+                child: const Text('LeaderBoard'),
               ),
             ],
           ),

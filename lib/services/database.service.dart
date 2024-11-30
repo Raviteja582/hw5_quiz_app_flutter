@@ -2,13 +2,23 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
 class DatabaseService {
+  static final DatabaseService instance = DatabaseService._instance();
   static Database? _database;
 
-  static Future<Database> getDatabase() async {
-    if (_database != null) return _database!;
+  DatabaseService._instance();
 
-    _database = await openDatabase(
-      join(await getDatabasesPath(), 'leaderboard.db'),
+  Future<Database> get database async {
+    _database ??= await initDB();
+    return _database!;
+  }
+
+  /// initialize the database
+  Future<Database> initDB() async {
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, 'leaderboard.db');
+    return await openDatabase(
+      path,
+      version: 1,
       onCreate: (db, version) {
         return db.execute(
           '''CREATE TABLE leaderboard(
@@ -19,27 +29,37 @@ class DatabaseService {
             )''',
         );
       },
-      version: 1,
     );
-    return _database!;
   }
 
-  static Future<void> addScore(
-      String player, String category, int score) async {
-    final db = await getDatabase();
+  static Future<void> addUser(String player, String category) async {
+    final db = await instance.database;
+    var user = await db.query('leaderboard',
+        where: 'player = ? AND category = ?', whereArgs: [player, category]);
+    if (user.isNotEmpty) {
+      return;
+    }
     await db.insert(
       'leaderboard',
-      {'player': player, 'category': category, 'score': score},
+      {'player': player, 'category': category, 'score': 0},
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 
-  static Future<List<Map<String, dynamic>>> getTopScores() async {
-    final db = await getDatabase();
-    return await db.query(
+  static Future<void> updateScore(
+      String player, String category, int score) async {
+    final db = await instance.database;
+    await db.update('leaderboard', {'score': score},
+        where: 'player = ? AND category = ?', whereArgs: [player, category]);
+  }
+
+  static Future<List<Map<String, dynamic>>?> getTopScores() async {
+    final db = await instance.database;
+    var resutls = await db.query(
       'leaderboard',
       orderBy: 'score DESC',
       limit: 10,
     );
+    return resutls;
   }
 }

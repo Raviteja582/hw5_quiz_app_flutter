@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
+import '../helpers/countdown_timer.dart';
 import 'result_screen.dart';
 import '../helpers/progress_indicator.dart';
+import 'package:hw5_quiz_app/services/database.service.dart';
 
 class QuizScreen extends StatefulWidget {
   final List<dynamic> questions;
+  final String userName;
+  final String category;
 
-  const QuizScreen({super.key, required this.questions});
+  const QuizScreen(
+      {super.key,
+      required this.questions,
+      required this.userName,
+      required this.category});
 
   @override
   // ignore: library_private_types_in_public_api
@@ -17,23 +25,48 @@ class _QuizScreenState extends State<QuizScreen> {
   int score = 0;
   String feedback = '';
 
+  final GlobalKey<CountdownTimerState> _timerKey =
+      GlobalKey<CountdownTimerState>();
+
+  void updateScore(int score) async {
+    await DatabaseService.updateScore(widget.userName, widget.category, score);
+    Navigator.push(
+      // ignore: use_build_context_synchronously
+      context,
+      MaterialPageRoute(
+        builder: (context) => ResultScreen(
+          score: score,
+          total: widget.questions.length,
+        ),
+      ),
+    );
+  }
+
   void handleAnswer(String selectedAnswer) {
+    _timerKey.currentState?.stopTimer();
     final correctAnswer = widget.questions[currentQuestion]['correct_answer'];
     setState(() {
+      late String currentfeedback;
       if (selectedAnswer == correctAnswer) {
-        feedback = 'Correct!';
+        currentfeedback = 'Correct!';
         score++;
+      } else if (selectedAnswer == 'NOT_SELECTED') {
+        currentfeedback = 'Times Up!!, The correct answer  was: $correctAnswer';
       } else {
-        feedback = 'Incorrect! The correct answer was: $correctAnswer';
+        currentfeedback = 'Incorrect! The correct answer was: $correctAnswer';
       }
+      feedback = currentfeedback;
 
       Future.delayed(const Duration(seconds: 2), () {
         if (currentQuestion < widget.questions.length - 1) {
+          _timerKey.currentState?.resetTimer();
           setState(() {
             currentQuestion++;
             feedback = '';
           });
+          _timerKey.currentState?.startTimer();
         } else {
+          updateScore(score);
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -97,6 +130,11 @@ class _QuizScreenState extends State<QuizScreen> {
                 ),
               );
             }),
+            CountdownTimer(
+              key: _timerKey,
+              initialSeconds: 30,
+              onTimerComplete: () => handleAnswer('NOT_SELECTED'),
+            )
           ],
         ),
       ),
